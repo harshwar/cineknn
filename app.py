@@ -265,6 +265,7 @@ def search():
     )
 
 
+@app.route("/working")
 @app.route("/algorithm")
 def algorithm():
     uid, is_demo, username, _, ratings_dict, _ = get_current_user_context()

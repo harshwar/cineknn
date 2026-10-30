@@ -16,7 +16,7 @@
 
       <nav class="nav-links">
         <a href="{{ url_for('index') }}">Home</a>
-        <a href="{{ url_for('algorithm') }}">Algorithm Lab</a>
+        <a href="{{ url_for('algorithm') }}">Working</a>
 
         <form action="{{ url_for('search') }}" method="GET" class="search-form">
           <input type="text" name="q" placeholder="Search 600 movies..." value="{{ request.args.get('q', '') }}">

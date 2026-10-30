@@ -17,7 +17,7 @@
   2. 🎯 *Because You Rated Highly* (Cosine similarity to user's favorite anchor title)
   3. 🎭 *Top in Favorite Genres* (Personalized genre filtering)
   4. 🏆 *Top Rated Overall* (Bayesian smoothed item baseline)
-- **🔬 Algorithm Lab & Real-Time Calculation Breakdown (`/algorithm`):** Inspect the exact mathematical trace for any movie and profile, including Bayesian numbers, deviation calculations, and top influential neighbors.
+- **⚙️ Working & Real-Time Calculation Breakdown (`/working`):** Inspect the exact mathematical trace for any movie and profile, including Bayesian numbers, deviation calculations, and top influential neighbors.
 - **Barebone, Fast UI:** Clean cards, simple tables, zero heavy JavaScript frameworks, fast page loads, and mobile responsiveness.
 - **User Accounts & Instant Demo Profiles:** SQLite persistence for personal ratings and watchlists, plus 1-click demo profiles (User #101, #205, #350).
 - **Free Cloud Deployment:** Ready for 1-click deployment on Render.com or any standard Python free tier.

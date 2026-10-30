@@ -109,10 +109,10 @@ class TestBareboneRecommender(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn(b"Dangal", res.data)
 
-        # Algorithm Lab page
-        res = self.client.get("/algorithm?movie_id=1&alpha=0.5")
+        # Working / Calculation breakdown page
+        res = self.client.get("/working?movie_id=1&alpha=0.5")
         self.assertEqual(res.status_code, 200)
-        self.assertIn(b"Algorithm Lab", res.data)
+        self.assertIn(b"Working", res.data)
         self.assertIn(b"Bayesian Shrinkage Prior", res.data)
 
         # API Predict
