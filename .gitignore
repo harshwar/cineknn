@@ -10,3 +10,4 @@ users.db
 test_users.db
 .env
 .DS_Store
+*.md
