@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Control Bar: Profile & Hybrid Alpha Blend -->
+<div class="control-bar">
+  <div class="control-group">
+    <span>Profile:</span>
+    {% for dp in demo_profiles %}
+      <a href="{{ url_for('demo_login', user_id=dp.id) }}" class="btn {% if session.get('demo_user_id') == dp.id %}btn-primary{% endif %}">
+        Demo #{{ dp.id }}
+      </a>
+    {% endfor %}
+    {% if session.get('user_id') %}
+      <span class="btn btn-primary">Custom User: {{ username }}</span>
+    {% endif %}
+  </div>
+
+  <div class="control-group">
+    <span>Blend Formula:</span>
+    <a href="{{ url_for('index', alpha=0.0) }}" class="btn {% if current_alpha == 0.0 %}btn-primary{% endif %}">α=0.0 (Content)</a>
+    <a href="{{ url_for('index', alpha=0.5) }}" class="btn {% if current_alpha == 0.5 %}btn-primary{% endif %}">α=0.5 (Balanced)</a>
+    <a href="{{ url_for('index', alpha=1.0) }}" class="btn {% if current_alpha == 1.0 %}btn-primary{% endif %}">α=1.0 (Collab)</a>
+    <span style="color: var(--text-muted); font-size: 0.8rem;">(Optimal: α={{ optimal_alpha }})</span>
+  </div>
+</div>
+
+<!-- Watchlist Section (if items exist) -->
+{% if watchlist_items %}
+<div class="shelf-section">
+  <div class="shelf-header">
+    <div class="shelf-title">📌 My Watchlist ({{ watchlist_items|length }})</div>
+    <span class="shelf-subtitle">Saved titles with real-time predicted ratings</span>
+  </div>
+  <div class="movie-grid">
+    {% for item in watchlist_items %}
+      <div class="movie-card">
+        <div class="movie-poster-wrap">
+          {% if item.poster_url %}
+            <img src="{{ item.poster_url }}" alt="{{ item.title }}" class="movie-poster" loading="lazy">
+          {% endif %}
+          <div class="score-badge">★ {{ item.predicted_rating }}</div>
+        </div>
+        <div class="movie-info">
+          <div>
+            <div class="movie-title">{{ item.title }} ({{ item.year }})</div>
+            <div class="movie-meta">IMDb {{ item.imdb_rating }}</div>
+            <div class="movie-genres">
+              {% for g in item.genres %}
+                <span class="genre-tag">{{ g }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="movie-actions">
+            <form action="{{ url_for('toggle_watchlist') }}" method="POST">
+              <input type="hidden" name="movieId" value="{{ item.movieId }}">
+              <button type="submit" class="btn" style="width: 100%;">Remove from Watchlist</button>
+            </form>
+            <a href="{{ url_for('algorithm', movie_id=item.movieId) }}" class="btn" style="text-align: center;">Inspect Math 🔍</a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Recommendation Shelves -->
+{% for key, shelf in shelves.items() %}
+  {% if shelf['items'] %}
+    <div class="shelf-section">
+      <div class="shelf-header">
+        <div class="shelf-title">{{ shelf.title }}</div>
+        <span class="shelf-subtitle">{{ shelf.subtitle }}</span>
+      </div>
+
+      <div class="movie-grid">
+        {% for item in shelf['items'] %}
+          <div class="movie-card">
+            <div class="movie-poster-wrap">
+              {% if item.poster_url %}
+                <img src="{{ item.poster_url }}" alt="{{ item.title }}" class="movie-poster" loading="lazy">
+              {% endif %}
+              <div class="score-badge">
+                {% if item.predicted_rating %}
+                  ★ {{ item.predicted_rating }}
+                {% elif item.avg_rating %}
+                  ★ {{ item.avg_rating }}
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="movie-info">
+              <div>
+                <div class="movie-title">{{ item.title }} {% if item.year %}({{ item.year }}){% endif %}</div>
+                <div class="movie-meta">
+                  {% if item.anchor %}
+                    <span style="color: var(--accent);">Similar to {{ item.anchor }}</span>
+                  {% elif item.imdb_rating %}
+                    IMDb {{ item.imdb_rating }}
+                  {% endif %}
+                </div>
+                <div class="movie-genres">
+                  {% for g in item.genres %}
+                    <span class="genre-tag">{{ g }}</span>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <div class="movie-actions">
+                <!-- Inline Rating Form -->
+                <form action="{{ url_for('rate_movie') }}" method="POST" class="rate-form">
+                  <input type="hidden" name="movieId" value="{{ item.movieId }}">
+                  <select name="rating" class="rate-select">
+                    <option value="" disabled selected>Rate...</option>
+                    <option value="5.0">5.0 ★★★★★</option>
+                    <option value="4.5">4.5 ★★★★½</option>
+                    <option value="4.0">4.0 ★★★★</option>
+                    <option value="3.5">3.5 ★★★½</option>
+                    <option value="3.0">3.0 ★★★</option>
+                    <option value="2.0">2.0 ★★</option>
+                    <option value="1.0">1.0 ★</option>
+                  </select>
+                  <button type="submit" class="btn">Save</button>
+                </form>
+
+                <!-- Watchlist Toggle & Math Inspector -->
+                <div style="display: flex; gap: 4px;">
+                  <form action="{{ url_for('toggle_watchlist') }}" method="POST" style="flex: 1;">
+                    <input type="hidden" name="movieId" value="{{ item.movieId }}">
+                    <button type="submit" class="btn" style="width: 100%;">
+                      {% if item.movieId in watchlist_ids %}✓ In Watchlist{% else %}+ Watchlist{% endif %}
+                    </button>
+                  </form>
+                  <a href="{{ url_for('algorithm', movie_id=item.movieId, alpha=current_alpha) }}" class="btn" title="Inspect calculation">🔍</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+{% endfor %}
+
+{% endblock %}

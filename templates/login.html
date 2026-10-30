@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; max-width: 900px; margin: 40px auto;">
+
+  <!-- Quick Demo Profiles -->
+  <div class="auth-box" style="margin: 0; max-width: 100%;">
+    <h2 style="font-size: 1.25rem; margin-bottom: 8px;">🎭 Instant Demo Profiles</h2>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">
+      Explore the recommender immediately using genuine Bollywood taste archetypes from interaction logs:
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <a href="{{ url_for('demo_login', user_id=101) }}" class="btn btn-primary" style="padding: 10px 14px; text-align: left;">
+        <strong>Demo User #101</strong><br>
+        <span style="font-size: 0.75rem; color: #0f172a;">49 ratings · Tastes: Classic Drama, Biography, Family</span>
+      </a>
+
+      <a href="{{ url_for('demo_login', user_id=205) }}" class="btn" style="padding: 10px 14px; text-align: left;">
+        <strong>Demo User #205</strong><br>
+        <span style="font-size: 0.75rem; color: var(--text-muted);">38 ratings · Tastes: Action, Crime, Thriller</span>
+      </a>
+
+      <a href="{{ url_for('demo_login', user_id=350) }}" class="btn" style="padding: 10px 14px; text-align: left;">
+        <strong>Demo User #350</strong><br>
+        <span style="font-size: 0.75rem; color: var(--text-muted);">42 ratings · Tastes: Romance, Musical, Comedy</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Sign In & Register -->
+  <div class="auth-box" style="margin: 0; max-width: 100%;">
+    <h2 style="font-size: 1.25rem; margin-bottom: 8px;">Sign In to Personal Account</h2>
+    <form action="{{ url_for('login') }}" method="POST">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" name="username" required placeholder="e.g. rahul">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" required placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px;">Sign In</button>
+    </form>
+
+    <hr style="border: 0; border-top: 1px solid var(--border); margin: 24px 0;">
+
+    <h2 style="font-size: 1.25rem; margin-bottom: 8px;">Create Free Account</h2>
+    <form action="{{ url_for('signup') }}" method="POST">
+      <div class="form-group">
+        <label>New Username</label>
+        <input type="text" name="username" required placeholder="Pick a username">
+      </div>
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" name="password" required placeholder="Password">
+      </div>
+      <div class="form-group">
+        <label>Favorite Genres (Optional)</label>
+        <div class="genre-checkboxes">
+          {% for g in ['Action', 'Comedy', 'Crime', 'Drama', 'Family', 'Musical', 'Mystery', 'Romance', 'Thriller', 'War'] %}
+            <label>
+              <input type="checkbox" name="genres" value="{{ g }}"> {{ g }}
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+      <button type="submit" class="btn" style="width: 100%; padding: 10px;">Register Account</button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

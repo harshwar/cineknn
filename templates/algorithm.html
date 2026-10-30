@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shelf-header">
+  <div class="shelf-title">🔬 Algorithm Lab & Mathematical Breakdown</div>
+  <span class="shelf-subtitle">Live derivation of dual-branch KNN prediction</span>
+</div>
+
+<!-- Selector Card -->
+<div class="algo-card">
+  <form action="{{ url_for('algorithm') }}" method="GET" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
+    <div style="flex: 1; min-width: 240px;">
+      <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 6px;">Select Candidate Movie:</label>
+      <select name="movie_id" style="width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius);" onchange="this.form.submit()">
+        {% for m in all_movies %}
+          <option value="{{ m.movieId }}" {% if m.movieId == movie_id %}selected{% endif %}>{{ m.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="min-width: 200px;">
+      <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 6px;">Active Profile:</label>
+      <select name="profile" style="width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius);" onchange="this.form.submit()">
+        <option value="current" {% if profile == 'current' %}selected{% endif %}>Current User ({{ session.get('username') }})</option>
+        <option value="101" {% if profile == '101' %}selected{% endif %}>Demo User #101 (Classic Drama & Bio)</option>
+        <option value="205" {% if profile == '205' %}selected{% endif %}>Demo User #205 (Action & Thriller)</option>
+        <option value="350" {% if profile == '350' %}selected{% endif %}>Demo User #350 (Romance & Comedy)</option>
+      </select>
+    </div>
+
+    <div style="min-width: 200px;">
+      <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 6px;">Alpha (CF Weight):</label>
+      <select name="alpha" style="width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius);" onchange="this.form.submit()">
+        <option value="0.0" {% if current_alpha == 0.0 %}selected{% endif %}>α = 0.0 (100% Content Genre)</option>
+        <option value="0.25" {% if current_alpha == 0.25 %}selected{% endif %}>α = 0.25 (25% CF / 75% CB)</option>
+        <option value="0.5" {% if current_alpha == 0.5 %}selected{% endif %}>α = 0.50 (Balanced Hybrid)</option>
+        <option value="0.75" {% if current_alpha == 0.75 %}selected{% endif %}>α = 0.75 (75% CF / 25% CB)</option>
+        <option value="1.0" {% if current_alpha == 1.0 %}selected{% endif %}>α = 1.0 (100% Collaborative)</option>
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="height: 38px;">Recalculate</button>
+  </form>
+
+  <!-- Quick picks row -->
+  <div style="margin-top: 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    <span style="color: var(--text-muted);">Quick Picks:</span>
+    {% for qp in quick_picks %}
+      <a href="{{ url_for('algorithm', movie_id=qp.movieId, profile=profile, alpha=current_alpha) }}" class="btn" style="padding: 3px 8px; font-size: 0.8rem;">
+        {{ qp.title }}
+      </a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if breakdown %}
+<!-- Result Summary Card -->
+<div class="algo-card">
+  <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center;">
+    {% if breakdown.target_movie.poster_url %}
+      <img src="{{ breakdown.target_movie.poster_url }}" alt="{{ breakdown.target_movie.title }}" style="width: 100px; height: 140px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border);">
+    {% endif %}
+    <div>
+      <h2 style="font-size: 1.4rem;">{{ breakdown.target_movie.title }} ({{ breakdown.target_movie.year }})</h2>
+      <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
+        Genres: <strong>{{ breakdown.target_movie.genres|join(", ") }}</strong> | 
+        IMDb: <strong>{{ breakdown.target_movie.imdb_rating }}</strong> | 
+        Dataset Reviews: <strong>{{ breakdown.bayesian_info.rating_count }}</strong>
+      </div>
+      <div style="margin-top: 12px; font-size: 1.1rem;">
+        Evaluating for: <span style="color: var(--accent); font-weight: 600;">{{ profile_label }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="metric-grid" style="margin-top: 20px;">
+    <div class="metric-box">
+      <div class="label">Bayesian Prior Mean</div>
+      <div class="value">{{ breakdown.bayesian_info.smoothed_baseline }}</div>
+    </div>
+    <div class="metric-box">
+      <div class="label">CF KNN Score ({{ breakdown.cf_weight_pct }}%)</div>
+      <div class="value" style="color: #60a5fa;">{{ breakdown.cf_score }}★</div>
+    </div>
+    <div class="metric-box">
+      <div class="label">CB Genre Score ({{ breakdown.cb_weight_pct }}%)</div>
+      <div class="value" style="color: #34d399;">{{ breakdown.cb_score }}★</div>
+    </div>
+    <div class="metric-box" style="border-color: var(--star);">
+      <div class="label" style="color: var(--star);">Final Hybrid Prediction</div>
+      <div class="value" style="color: var(--star);">{{ breakdown.hybrid_score }}★</div>
+    </div>
+  </div>
+</div>
+
+<!-- Step-by-Step Mathematical Trace -->
+<div class="algo-card">
+  <h3>Step 1: Bayesian Shrinkage Prior Smoothing</h3>
+  <p style="font-size: 0.9rem; color: var(--text-muted);">
+    Prevents movies with few reviews from skewing recommendations by anchoring item means toward the dataset global mean.
+  </p>
+  <div class="formula-box">
+    μ_i = (Σ r_{u,i} + 10 · r̄) / (|U_i| + 10)
+  </div>
+  <table style="margin-top: 10px;">
+    <tr><th>Variable</th><th>Formula Symbol</th><th>Value in Calculation</th></tr>
+    <tr><td>Observed Ratings Count</td><td>|U_i|</td><td>{{ breakdown.bayesian_info.rating_count }} ratings</td></tr>
+    <tr><td>Observed Ratings Sum</td><td>Σ r_{u,i}</td><td>{{ breakdown.bayesian_info.rating_sum }}</td></tr>
+    <tr><td>Global Dataset Mean</td><td>r̄</td><td>{{ breakdown.bayesian_info.global_mean }}</td></tr>
+    <tr><td>Shrinkage Weight Prior</td><td>C</td><td>10.0</td></tr>
+    <tr><td><strong>Smoothed Baseline Prior</strong></td><td><strong>μ_i</strong></td><td><strong>{{ breakdown.bayesian_info.smoothed_baseline }}</strong></td></tr>
+  </table>
+</div>
+
+<div class="algo-card">
+  <h3>Step 2: Vectorized KNN Deviation & Dual-Branch Blending</h3>
+  <p style="font-size: 0.9rem; color: var(--text-muted);">
+    Calculates weighted rating deviations across the user's previously rated titles using Cosine Similarity.
+  </p>
+  <div class="formula-box">
+    r̂_{u, c}^{(kind)} = μ_c + [ Σ S_{cj} · (r_{u,j} - μ_j) ] / [ Σ |S_{cj}| ]
+    <br><br>
+    r̂_{u, c}^{(hybrid)} = clamp( α · r̂_{u, c}^{(cf)} + (1 - α) · r̂_{u, c}^{(cb)}, 0.5, 5.0 )
+  </div>
+  <div style="background: var(--bg); padding: 12px; border-radius: var(--radius); font-size: 0.9rem; margin-top: 10px;">
+    <strong>Active Blend Calculation:</strong><br>
+    <code>{{ breakdown.alpha }} · {{ breakdown.cf_score }} (CF) + {{ (1.0 - breakdown.alpha)|round(2) }} · {{ breakdown.cb_score }} (CB) = <strong>{{ breakdown.hybrid_score }}★</strong></code>
+  </div>
+</div>
+
+<!-- Influential Neighbors Table -->
+{% if breakdown.neighbors %}
+<div class="algo-card">
+  <h3>Step 3: Top Influential Neighbors for {{ profile_label }}</h3>
+  <p style="font-size: 0.9rem; color: var(--text-muted);">
+    The user's rated titles that had the strongest cosine similarity S_{cj} and impact on this prediction:
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Neighbor Movie</th>
+        <th>User Rating</th>
+        <th>Item Baseline (μ_j)</th>
+        <th>Deviation (r - μ)</th>
+        <th>CF Cosine Sim</th>
+        <th>CB Genre Sim</th>
+        <th>Blended Sim</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in breakdown.neighbors %}
+        <tr>
+          <td><strong>{{ n.title }}</strong><br><span style="font-size: 0.75rem; color: var(--text-muted);">{{ n.genres|join(", ") }}</span></td>
+          <td><span style="color: var(--star); font-weight: 700;">{{ n.user_rating }}★</span></td>
+          <td>{{ n.item_baseline }}</td>
+          <td style="color: {% if n.deviation >= 0 %}#4ade80{% else %}#f87171{% endif %};">
+            {% if n.deviation > 0 %}+{% endif %}{{ n.deviation }}
+          </td>
+          <td>{{ n.cf_sim }}</td>
+          <td>{{ n.cb_sim }}</td>
+          <td><strong>{{ n.hybrid_sim }}</strong></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}

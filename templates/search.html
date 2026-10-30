@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shelf-header">
+  <div class="shelf-title">Search Results: "{{ query }}"</div>
+  <span class="shelf-subtitle">{{ results|length }} titles found</span>
+</div>
+
+{% if not results %}
+  <div class="algo-card" style="text-align: center; padding: 40px;">
+    <p>No Bollywood titles found matching "{{ query }}".</p>
+    <p style="margin-top: 10px;"><a href="{{ url_for('index') }}" class="btn btn-primary">Back to Home</a></p>
+  </div>
+{% else %}
+  <div class="movie-grid">
+    {% for item in results %}
+      <div class="movie-card">
+        <div class="movie-poster-wrap">
+          {% if item.poster_url %}
+            <img src="{{ item.poster_url }}" alt="{{ item.title }}" class="movie-poster" loading="lazy">
+          {% endif %}
+          <div class="score-badge">
+            {% if item.is_rated %}
+              You: ★ {{ item.user_rating }}
+            {% elif item.predicted_rating %}
+              Pred: ★ {{ item.predicted_rating }}
+            {% else %}
+              IMDb {{ item.imdb_rating }}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="movie-info">
+          <div>
+            <div class="movie-title">{{ item.title }} ({{ item.year }})</div>
+            {% if item.director %}
+              <div class="movie-meta">Dir: {{ item.director }}</div>
+            {% endif %}
+            <div class="movie-genres">
+              {% for g in item.genres %}
+                <span class="genre-tag">{{ g }}</span>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="movie-actions">
+            <form action="{{ url_for('rate_movie') }}" method="POST" class="rate-form">
+              <input type="hidden" name="movieId" value="{{ item.movieId }}">
+              <select name="rating" class="rate-select">
+                <option value="" disabled {% if not item.is_rated %}selected{% endif %}>
+                  {% if item.is_rated %}Rated {{ item.user_rating }}★{% else %}Rate...{% endif %}
+                </option>
+                <option value="5.0">5.0 ★★★★★</option>
+                <option value="4.5">4.5 ★★★★½</option>
+                <option value="4.0">4.0 ★★★★</option>
+                <option value="3.5">3.5 ★★★½</option>
+                <option value="3.0">3.0 ★★★</option>
+                <option value="2.0">2.0 ★★</option>
+                <option value="1.0">1.0 ★</option>
+              </select>
+              <button type="submit" class="btn">Save</button>
+            </form>
+
+            <div style="display: flex; gap: 4px;">
+              <form action="{{ url_for('toggle_watchlist') }}" method="POST" style="flex: 1;">
+                <input type="hidden" name="movieId" value="{{ item.movieId }}">
+                <button type="submit" class="btn" style="width: 100%;">
+                  {% if item.movieId in watchlist_ids %}✓ In Watchlist{% else %}+ Watchlist{% endif %}
+                </button>
+              </form>
+              <a href="{{ url_for('algorithm', movie_id=item.movieId) }}" class="btn" title="Inspect calculation">🔍</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% endblock %}
