@@ -24,23 +24,25 @@
 
 ## 1. Mathematical Notation Glossary
 
+*(Note: Mathematical set sizes use `card()` to ensure valid markdown table rendering).*
+
 | Symbol | Mathematical Definition | Domain / Dimensions | Dataset Value in CineKNN |
 | :--- | :--- | :--- | :--- |
-| $\mathcal{U}$ | Set of all active user profiles | $|\mathcal{U}| = N_{\text{users}}$ | $400$ users ($u \in \{101, \dots, 500\}$) |
-| $\mathcal{I}$ | Set of all movie titles in the catalog | $|\mathcal{I}| = N_{\text{movies}}$ | $600$ Bollywood titles |
-| $\mathcal{R}$ | Observed ratings matrix | $\mathbb{R}^{|\mathcal{U}| \times |\mathcal{I}|}$ | $23,853$ non-null observed cells |
-| $r_{u, i}$ | Explicit star rating by user $u$ on movie $i$ | $[0.5, 5.0] \subset \mathbb{R}$ | Discrete steps of $0.5$ |
-| $U_i$ | Set of users who have rated movie $i$ | $U_i \subseteq \mathcal{U}$ | $|U_i| \in [1, 185]$ |
-| $I_u$ | Set of movies rated by user $u$ | $I_u \subseteq \mathcal{I}$ | $|I_u| \in [30, 75]$ |
+| $\mathcal{U}$ | Set of all active user profiles | $\text{card}(\mathcal{U}) = N_{\text{users}}$ | $400$ users ($u \in \{101, \dots, 500\}$) |
+| $\mathcal{I}$ | Set of all movie titles in the catalog | $\text{card}(\mathcal{I}) = N_{\text{movies}}$ | $600$ Bollywood titles ($1970–2024$) |
+| $\mathcal{R}$ | Observed ratings matrix | $\mathbb{R}^{400 \times 600}$ | $23,853$ non-null observed interaction cells |
+| $r_{u, i}$ | Explicit star rating by user $u$ on movie $i$ | $[0.5, 5.0] \subset \mathbb{R}$ | Discrete increments of $0.5$ stars |
+| $U_i$ | Set of users who have rated movie $i$ | $U_i \subseteq \mathcal{U}$ | $\text{card}(U_i) \in [1, 185]$ |
+| $I_u$ | Set of movies rated by user $u$ | $I_u \subseteq \mathcal{I}$ | $\text{card}(I_u) \in [30, 75]$ (avg $\sim 60$) |
 | $\bar{r}$ | Global dataset mean across all ratings | $\mathbb{R}$ | $\mathbf{3.8124}$ stars |
 | $C$ | Bayesian shrinkage pseudo-count constant | $\mathbb{R}^+$ | $\mathbf{10.0}$ pseudo-observations |
-| $\mu_i$ | Bayesian smoothed baseline rating for movie $i$ | $[0.5, 5.0]$ | Derived per movie |
-| $\mathbf{v}_{cf}(i)$ | Unit-normalized collaborative vector for movie $i$ | $\mathbb{R}^{400}$ | $\|\mathbf{v}_{cf}(i)\|_2 = 1.0$ |
-| $\mathbf{v}_{cb}(i)$ | Unit-normalized multi-hot genre vector for movie $i$ | $\mathbb{R}^{20}$ | $\|\mathbf{v}_{cb}(i)\|_2 = 1.0$ |
-| $\mathcal{N}_k(c, u)$| $k$ nearest rated neighbors to candidate $c$ rated by user $u$ | Subset of $I_u$ | $k = 15$ |
-| $S_{cj}^{(cf)}$ | Collaborative cosine similarity between items $c$ and $j$ | $[-1.0, 1.0]$ | Dot product: $\mathbf{v}_{cf}(c) \cdot \mathbf{v}_{cf}(j)^T$ |
-| $S_{cj}^{(cb)}$ | Content genre cosine similarity between items $c$ and $j$ | $[0.0, 1.0]$ | Overlap: $\frac{|\mathcal{G}_c \cap \mathcal{G}_j|}{\sqrt{|\mathcal{G}_c| \|\mathcal{G}_j|}}$ |
-| $\alpha$ | Hybrid blending coefficient | $[0.0, 1.0]$ | Grid: $\{0.0, 0.25, 0.5, 0.75, 1.0\}$ |
+| $\mu_i$ | Bayesian smoothed baseline rating for movie $i$ | $[0.5, 5.0]$ | Derived per movie ($0.5 - 5.0$) |
+| $\mathbf{v}_{cf}(i)$ | Unit-normalized collaborative vector for movie $i$ | $\mathbb{R}^{400}$ | Unit L2 length: $\|\mathbf{v}_{cf}(i)\|_2 = 1.0$ |
+| $\mathbf{v}_{cb}(i)$ | Unit-normalized multi-hot genre vector for movie $i$ | $\mathbb{R}^{20}$ | Unit L2 length: $\|\mathbf{v}_{cb}(i)\|_2 = 1.0$ |
+| $\mathcal{N}_k(c, u)$ | $k$ nearest rated neighbors to candidate $c$ | Subset of $I_u$ | $k = 15$ |
+| $S_{cj}^{(cf)}$ | Collaborative cosine similarity between items $c$ and $j$ | $[-1.0, 1.0]$ | Vector dot product: $\mathbf{v}_{cf}(c) \cdot \mathbf{v}_{cf}(j)^T$ |
+| $S_{cj}^{(cb)}$ | Content genre cosine similarity between items $c$ and $j$ | $[0.0, 1.0]$ | Genre overlap: $\frac{\text{card}(\mathcal{G}_c \cap \mathcal{G}_j)}{\sqrt{\text{card}(\mathcal{G}_c) \times \text{card}(\mathcal{G}_j)}}$ |
+| $\alpha$ | Dynamic hybrid blending coefficient | $[0.0, 1.0]$ | Grid: $\{0.0, 0.25, 0.5, 0.75, 1.0\}$ |
 | $\hat{r}_{u, c}$ | Predicted star rating for user $u$ on candidate movie $c$ | $[0.5, 5.0]$ | Final clamped output |
 
 ---
@@ -51,40 +53,40 @@ The recommendation lifecycle follows a strict sequence of mathematical operation
 
 ```mermaid
 graph TD
-    subgraph "OFFLINE INGESTION & VECTORIZATION"
-        A1["Input: Raw Interaction Logs (23,853 ratings)"] --> A3["Compute Global Mean: r̄ = 3.812"]
-        A2["Input: Catalog Metadata (600 Movies, 20 Genres)"] --> B1["Encode Multi-Hot Genre Matrix G (600 x 20)"]
-        A3 --> B2["Compute Bayesian Shrinkage Prior: μ_i = (Σ r + 10·r̄) / (|U_i| + 10)"]
-        B2 --> C1["Center Ratings Matrix: R̃ = R - μ"]
-        C1 --> C2["Unit L2 Normalize CF Vectors: v_cf(i) = R̃_i / ||R̃_i||_2"]
-        B1 --> C3["Unit L2 Normalize CB Vectors: v_cb(i) = G_i / ||G_i||_2"]
+    subgraph OFFLINE_PREP ["1. Offline Ingestion & Vectorization"]
+        A1["Raw Interaction Logs: 23,853 ratings"] --> A3["Compute Global Mean: r_bar = 3.8124"]
+        A2["Catalog Metadata: 600 Movies, 20 Genres"] --> B1["Encode Multi-Hot Genre Matrix G (600 x 20)"]
+        A3 --> B2["Compute Bayesian Shrinkage Prior: mu_i = (sum r + 10*r_bar) / (count + 10)"]
+        B2 --> C1["Center Ratings Matrix: R_centered = R - mu"]
+        C1 --> C2["Unit L2 Normalize CF Vectors: v_cf(i) = R_centered / norm"]
+        B1 --> C3["Unit L2 Normalize CB Vectors: v_cb(i) = G_i / norm"]
     end
 
-    subgraph "OFFLINE HYPERPARAMETER TUNING"
-        C2 --> D1["Sample Holdout Validation Set (1,000 ratings)"]
+    subgraph OFFLINE_TUNING ["2. Offline Validation Tuning"]
+        C2 --> D1["Sample Holdout Validation Set: 1,000 ratings"]
         C3 --> D1
-        D1 --> D2["Grid Search α ∈ {0.0, 0.25, 0.5, 0.75, 1.0}"]
-        D2 --> D3["Select α* minimizing Validation RMSE: α* = 1.0"]
+        D1 --> D2["Grid Search alpha in {0.0, 0.25, 0.5, 0.75, 1.0}"]
+        D2 --> D3["Select optimal alpha* minimizing RMSE: alpha* = 1.0"]
     end
 
-    subgraph "ONLINE REAL-TIME INFERENCE (User u, Candidate c)"
+    subgraph ONLINE_INFERENCE ["3. Real-Time Online Inference (User u, Candidate c)"]
         E1["User u Profile & Candidate Movie c"] --> F1["Branch A: Collaborative KNN"]
         E1 --> F2["Branch B: Content-Based KNN"]
         
-        F1 --> G1["Compute S_cj^(cf) = v_cf(c) · v_cf(j)^T for j ∈ I_u"]
+        F1 --> G1["Compute S_cj^(cf) = v_cf(c) · v_cf(j) for j in I_u"]
         G1 --> G2["Extract Top-k Neighbors: N_k(c, u) with k=15"]
-        G2 --> G3["Compute CF Deviation: Δ_cf = Σ S·(r - μ) / Σ |S|"]
-        G3 --> G4["r̂_cf = μ_c + Δ_cf"]
+        G2 --> G3["Compute CF Deviation: Delta_cf = sum(S * (r - mu)) / sum(abs(S))"]
+        G3 --> G4["r_cf = mu_c + Delta_cf"]
 
-        F2 --> H1["Compute S_cj^(cb) = v_cb(c) · v_cb(j)^T for j ∈ I_u"]
+        F2 --> H1["Compute S_cj^(cb) = v_cb(c) · v_cb(j) for j in I_u"]
         H1 --> H2["Extract Top-k Neighbors: N_k(c, u) with k=15"]
-        H2 --> H3["Compute CB Deviation: Δ_cb = Σ S·(r - μ) / Σ |S|"]
-        H3 --> H4["r̂_cb = μ_c + Δ_cb"]
+        H2 --> H3["Compute CB Deviation: Delta_cb = sum(S * (r - mu)) / sum(abs(S))"]
+        H3 --> H4["r_cb = mu_c + Delta_cb"]
 
-        G4 --> J1["Convex Combination: r̂_raw = α·r̂_cf + (1 - α)·r̂_cb"]
+        G4 --> J1["Convex Combination: r_raw = alpha*r_cf + (1 - alpha)*r_cb"]
         H4 --> J1
-        J1 --> J2["Boundary Clamping: r̂_hybrid = min(5.0, max(0.5, r̂_raw))"]
-        J2 --> K1["Deliver Recommendations & Explainable Neighbors Table"]
+        J1 --> J2["Boundary Clamping: r_hybrid = clamp(r_raw, 0.5, 5.0)"]
+        J2 --> K1["Deliver 4 Shelves & Explainable Neighbors Table"]
     end
 ```
 
@@ -95,7 +97,7 @@ graph TD
 ### 3.1 The Fundamental Flaw of Arithmetic Means
 Let $R_i = \frac{1}{|U_i|} \sum_{u \in U_i} r_{u,i}$ be the raw sample average.
 - If Movie $A$ has **1 rating of 5.0★**, its sample mean is $R_A = 5.0★$ (variance $\sigma^2 \to \infty$).
-- If Movie $B$ has **150 ratings averaging 4.35★**, its sample mean is $R_B = 4.35★$ (statistically robust).
+- If Movie $B$ has **150 ratings averaging 4.35★**, its sample mean is $R_B = 4.35★$ (statistically robust evidence).
 - A naïve ranking places $A > B$, distorting top picks with unvetted outliers.
 
 ### 3.2 The Bayesian Shrinkage Formulation
@@ -144,8 +146,8 @@ Every movie item $i \in \mathcal{I}$ is simultaneously projected into two orthog
 
 ```
 Movie Item i
-   ├── Collaborative Vector v_cf(i) ∈ ℝ^400  (400 User Interaction Dimensions)
-   └── Content Genre Vector   v_cb(i) ∈ ℝ^20   (20 Binary Genre Dimensions)
+   ├── Collaborative Vector v_cf(i) in R^400  (400 User Interaction Dimensions)
+   └── Content Genre Vector   v_cb(i) in R^20   (20 Binary Genre Dimensions)
 ```
 
 ### 4.1 Branch A: Collaborative Interaction Vector ($\mathbf{v}_{cf}$)
@@ -284,7 +286,7 @@ $$\forall u \in \mathcal{U}, \, c \in \mathcal{I}, \quad 0.5 \le \hat{r}_{u, c}^
 
 ## 8. Stage 6: Hyperparameter Optimization (Data-Driven Alpha Tuning)
 
-The parameter $\alpha$ is not arbitrary; it is dynamically tuned on a held-out validation sample $\mathcal{D}_{\text{val}}$ ($N_{\text{val}} = 1,000$ ratings).
+The parameter $\alpha$ is dynamically tuned on a held-out validation sample $\mathcal{D}_{\text{val}}$ ($N_{\text{val}} = 1,000$ ratings).
 
 ### 8.1 Empirical Optimization Objective
 $$\alpha^* = \arg\min_{\alpha \in \mathcal{A}} \operatorname{RMSE}(\alpha)$$
@@ -293,23 +295,7 @@ Where:
 $$\mathcal{A} = \{0.00, \, 0.25, \, 0.50, \, 0.75, \, 1.00\}$$
 $$\operatorname{RMSE}(\alpha) = \sqrt{\frac{1}{|\mathcal{D}_{\text{val}}|} \sum_{(u,i) \in \mathcal{D}_{\text{val}}} \left( r_{u,i} - \operatorname{clamp}\left(\alpha \cdot \hat{r}_{u,i}^{(cf)} + (1 - \alpha) \cdot \hat{r}_{u,i}^{(cb)}, \, 0.5, \, 5.0\right) \right)^2}$$
 
-### 8.2 Empirical Validation Grid Curve
-
-```
-Validation RMSE
-  1.0 |      * (α=0.0: Content Only, RMSE = 0.5578)
-      |
-  0.8 |
-      |
-  0.6 |
-      |
-  0.4 |
-      |
-  0.2 |                                  * (α=1.0: Collab Dominant, RMSE = 0.2551)
-      +--------------------------------------
-        0.00     0.25     0.50     0.75     1.00   (Alpha α)
-```
-
+### 8.2 Empirical Validation Grid Behavior
 - When dense interaction logs exist ($\sim 40$ reviews/movie), collaborative peer wisdom significantly outperforms genre metadata alone, yielding **$\alpha^* = 1.0$**.
 - In extreme cold-start environments with sparse logs, the optimization automatically shifts toward $\alpha^* \in [0.25, 0.50]$.
 
@@ -352,10 +338,12 @@ Evaluated on $N_{\text{test}} = 3,000$ strictly isolated test ratings with fixed
 
 ### 10.2 Empirical Offline Benchmark Results
 
+*(Numbers verified by running `python evaluate.py` across 3,000 holdout ratings)*:
+
 | Model Configuration | Mathematical Formula $\hat{y}$ | RMSE | MAE | Accuracy Role |
 | :--- | :--- | :---: | :---: | :--- |
 | **1. Global Mean Baseline** | $\hat{y} = \bar{r} = 3.8124$ | **$0.9634$** | **$0.7888$** | Naïve non-personalized benchmark |
-| **2. Bayesian Item Mean** | $\hat{y} = \mu_i = \frac{\sum r + 10\bar{r}}{\|U_i\| + 10}$ | **$0.8317$** | **$0.6596$** | Popularity prior smoothing |
+| **2. Bayesian Item Mean** | $\hat{y} = \mu_i = \frac{\sum r + 10\bar{r}}{\text{count}(U_i) + 10}$ | **$0.8317$** | **$0.6596$** | Popularity prior smoothing |
 | **3. Content Genre KNN ($\alpha=0$)** | $\hat{y} = \mu_i + \Delta_{\text{genre}}$ | **$0.5578$** | **$0.4415$** | Cold-start metadata shield |
 | **4. Collaborative KNN ($\alpha=1$)** | $\hat{y} = \mu_i + \Delta_{\text{collab}}$ | **$0.2551$** | **$0.1921$** | Dense interaction peer patterns |
 | **5. CineKNN Hybrid ($\alpha^* = 1.0$)** | $\hat{y} = \operatorname{clamp}(\alpha \hat{r}_{cf} + (1-\alpha)\hat{r}_{cb})$ | **$0.2551$** | **$0.1921$** | **WINNER: 73.5% Error Reduction** |
@@ -366,32 +354,15 @@ $$\% \text{ Gain} = \frac{0.9634 - 0.2551}{0.9634} \times 100\% = \frac{0.7083}{
 
 ## 11. Master Equation Reference Table
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 CINEKNN CORE MATHEMATICAL SPECIFICATION                                │
-├──────────────────────────────┬─────────────────────────────────────────────────────────────────────────┤
-│ Concept                      │ Formulation                                                             │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Global Mean                  │ r̄ = (1 / |R|) · Σ r_{u,i} = 3.8124                                      │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Bayesian Shrinkage Prior     │ μ_i = (Σ_{u} r_{u,i} + 10 · r̄) / (|U_i| + 10)                           │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Collaborative Vector         │ v_cf(i) = (r_i - μ_i) / ||r_i - μ_i||_2                                 │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Content Genre Vector         │ v_cb(i) = g_i / ||g_i||_2 = g_i / √(|G_i|)                              │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Cosine Similarity (BLAS)     │ S_ij = v(i) · v(j)^T                                                    │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Collaborative KNN Prediction │ r̂_cf = μ_c + [ Σ S^(cf)·(r_u,j - μ_j) ] / [ Σ |S^(cf)| ]                 │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Content KNN Prediction       │ r̂_cb = μ_c + [ Σ S^(cb)·(r_u,j - μ_j) ] / [ Σ |S^(cb)| ]                 │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Hybrid Convex Blend          │ r̂_raw = α · r̂_cf + (1 - α) · r̂_cb                                       │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Rating Boundary Clamp        │ r̂_hybrid = min(5.0, max(0.5, r̂_raw))                                   │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Causal Explanation Anchor    │ Anchor(c) = argmax_{j: r≥4} [ α S_cj^(cf) + (1-α) S_cj^(cb) ]           │
-├──────────────────────────────┼─────────────────────────────────────────────────────────────────────────┤
-│ Model Objective Loss         │ RMSE = √[ (1/N) · Σ (y_k - r̂_hybrid_k)^2 ]                             │
-└──────────────────────────────┴─────────────────────────────────────────────────────────────────────────┘
-```
+| Core Concept | Mathematical Formulation | Practical Operational Role |
+| :--- | :--- | :--- |
+| **Global Dataset Mean** | $\bar{r} = \frac{1}{\text{card}(\mathcal{R})} \sum r_{u,i} = \mathbf{3.8124}$ | Benchmark center across all ratings |
+| **Bayesian Shrinkage Prior** | $\mu_i = \frac{\sum r_{u,i} + 10 \cdot \bar{r}}{\text{card}(U_i) + 10}$ | Anchors sparse items to prevent outlier bias |
+| **Collaborative Centered Vector** | $\mathbf{v}_{cf}(i) = \frac{\mathbf{r}_i - \mu_i}{\|\mathbf{r}_i - \mu_i\|_2}$ | Measures relative community deviation in $\mathbb{R}^{400}$ |
+| **Content Multi-Hot Vector** | $\mathbf{v}_{cb}(i) = \frac{\mathbf{g}_i}{\|\mathbf{g}_i\|_2} = \frac{\mathbf{g}_i}{\sqrt{\text{card}(\mathcal{G}_i)}}$ | Invariant genre representation in $\mathbb{R}^{20}$ |
+| **Unit Cosine Dot Product** | $S_{ij} = \mathbf{v}_i \cdot \mathbf{v}_j^T$ | Computes item cosine similarity in $<0.4$ ms |
+| **KNN Deviation Formula** | $\hat{r} = \mu_c + \frac{\sum S \cdot (r - \mu)}{\sum \|S\|}$ | Adjusts candidate baseline by user's neighbor shifts |
+| **Hybrid Convex Blend** | $\hat{r}_{\text{raw}} = \alpha \hat{r}_{\text{cf}} + (1 - \alpha) \hat{r}_{\text{cb}}$ | Balances crowd wisdom with genre tags |
+| **Boundary Clamping** | $\hat{r}_{\text{final}} = \min(5.0, \max(0.5, \hat{r}_{\text{raw}}))$ | Enforces strict $[0.5, 5.0]$ star rating bounds |
+| **Causal Anchor Rationale** | $\text{Anchor}(c) = \arg\max_{j: r \ge 4} S_{\text{blended}}(c, j)$ | Identifies "Because you liked [Item]" evidence |
+| **Holdout Loss Function** | $\text{RMSE} = \sqrt{\frac{1}{N} \sum (y - \hat{y})^2}$ | Empirical accuracy objective for alpha tuning |
